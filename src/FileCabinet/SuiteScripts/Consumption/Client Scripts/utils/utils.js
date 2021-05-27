@@ -1,3 +1,5 @@
+// noinspection JSVoidFunctionReturnValueUsed
+
 /**
  * @NApiVersion 2.1
  * @NModuleScope Public
@@ -20,7 +22,14 @@ define(['N/search','N/log','N/record'],
                     var endarray = []
                     var binsearch = search.load(searchId).run().each(
                         function (result){
-                            console.log(result)
+                            var temp = []
+                            for (var j =0; j<result.columns.length;j++){
+                                temp.push(
+                                    result.getText(result.columns[j]) ?  result.getText(result.columns[j]) : result.getValue(result.columns[j])
+                                )
+                            }
+                            endarray.push(temp)
+                            return true
                         }
                     )
 

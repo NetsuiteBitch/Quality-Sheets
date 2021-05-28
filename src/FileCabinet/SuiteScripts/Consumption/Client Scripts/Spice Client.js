@@ -27,17 +27,34 @@ function(log,currentRecord,record,search,utils,excel,filesaver) {
      */
 
 
-    async function DownloadTemplate(templatefileobject){
+     async function DownloadTemplate(templatefileobject){
 
         var templatebook= new excel.Workbook()
 
         var templatebook = await templatebook.xlsx.load(templatefileobject,{base64:true})
 
-        var templatemainsheet = templatebook.getWorksheet("Sheet1")
-        console.log(templatemainsheet)
-        var currentinventory = utils.return2darray('customsearchspicebininv')
+        var templatemainsheet = templatebook.getWorksheet("main")
+        var templatelookupsheet = templatebook.getWorksheet("lookup")
+        var lastrow = 3
+        // console.log(templatemainsheet)
 
-        console.log(utils.return2darray('customsearchspicebininv'))
+        templatemainsheet.dataValidations.add( "E3:E100",{
+            type: "list",
+            allowBlank: true,
+            formulae: ["lookup!D:D"]
+        })
+
+        templatemainsheet.dataValidations.add("F4:F100",{
+            type: "custom",
+            allowBlank: true,
+            showErrorMessage:true,
+            formulae: ['F4<=(--(INDEX(lookup!E:E,MATCH(1,--(lookup!A:A=main!C4)*--(lookup!D:D=main!E4),0))))']
+        })
+
+
+
+
+        // console.log(utils.return2darray('customsearchspicebininv'))
 
         // console.log(templatefileobject)
 
@@ -52,7 +69,7 @@ function(log,currentRecord,record,search,utils,excel,filesaver) {
                 id: wid
             })
 
-            var itemname = wrec.getValue('assemblyitem')
+            var itemname = wrec.getText('assemblyitem')
 
             var itemidarr = []
             var itemarr = []
@@ -62,17 +79,26 @@ function(log,currentRecord,record,search,utils,excel,filesaver) {
                 itemidarr.push(utils.getsublistvalues(wrec,'item',i,['item'])[0])
             }
 
-            itemarr.push(["","",""])
+            itemarr.push(["","","",""])
             for(const itemid of itemidarr){
                 // var description
                 const iteminfo  = search.lookupFields({type:"item",id:itemid,columns:["itemid","displayname"]})
-                itemarr.push([itemid,iteminfo.itemid,iteminfo.displayname])
+                itemarr.push([itemname,itemid,iteminfo.itemid,iteminfo.displayname])
             }
+            var startmerge = templatemainsheet.rowCount+2
 
             templatemainsheet.addRows(itemarr)
-
+            templatemainsheet.mergeCells(startmerge,1,startmerge+itemarr.length-2,1)
+            templatemainsheet.getCell(startmerge,1).alignment = {textRotation: 90}
         }
 
+        //Add lookup
+
+        var lookuparr = utils.return2darray("customsearchspicebininv")
+        templatelookupsheet.addRows(lookuparr)
+        console.log(lookuparr)
+
+        //Autofit Rows
         templatemainsheet.columns.forEach(function(column){
             var dataMax = 0;
             column.eachCell({ includeEmpty: true }, function(cell){
@@ -84,9 +110,14 @@ function(log,currentRecord,record,search,utils,excel,filesaver) {
             column.width = dataMax < 10 ? 10 : dataMax;
         });
 
+        //commit excel file
+        // templatelookupsheet.commit()
+        // templatemainsheet.commit()
+        // templatebook.commit()
+        //download excel file
         templatebook.xlsx.writeBuffer().then(function(buffer) {
             // done
-            console.log(buffer);
+            // console.log(buffer);
 
             const blob = new Blob([buffer], { type: "application/xlsx" });
             console.log(filesaver)
